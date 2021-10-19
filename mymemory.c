@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include "mymemory.h"
+#include "shell.c"
 
 
 // our memory
@@ -23,13 +23,17 @@ void initialize ()
    // create segment table
    // contains one segment description that declares the whole memory
    // as one free segment
-   Segment_t segment;
-     segment.allocated = FALSE;
-     segment.start = &mymemory;
-     segment.size = MAXMEM;
-     segment.next = NULL;
-  
+   Segment_t segment = {
+     .allocated = FALSE,
+     .start = &mymemory,
+     .size = MAXMEM};
+   /*segmenttable->allocated = FALSE;
+   segmenttable->start = &mymemory;
+   segmenttable->size = MAXMEM;*/
+   printsegmentdescriptor(&segment);
    segmenttable = &segment; 
+   printsegmentdescriptor(segmenttable);
+   printf("Segmentable and segmenttable next initialize: %p %p \n", segmenttable, segmenttable->next);
    
    //
    // create a single segment descriptor
@@ -44,17 +48,27 @@ void initialize ()
 void * mymalloc ( size_t asize )
 {
    printf ( "mymalloc> start\n");
-
+   printf("Segmentable and next mymalloc: %p %p \n", segmenttable, segmenttable->next );
   // implement the mymalloc functionality
   Segment_t * place;
   Segment_t NewSegment;
   place = findFree(segmenttable,asize);
+  printsegmentdescriptor(place);
   if (place == NULL) {printf("Not enough space");}
   else{
     place->size = place->size - asize;
     NewSegment.allocated = TRUE;
     NewSegment.size = asize;
-    NewSegment.start = place->start + place->size;
+    NewSegment.start = place->start;
+    printf("%ld %x %p \n", NewSegment.size, NewSegment.allocated, NewSegment.start);
+    printf("%x ", segmenttable->allocated);
+  
+    printsegmentdescriptor(&NewSegment);
+    printsegmentdescriptor(segmenttable);
+    
+    printf("MyMalloc place pointer: %p \n", place);
+    printf("MyMalloc segmentable pointer: %p \n", segmenttable);
+    printf("MyMalloc NewSegment pointer: %p \n", &NewSegment);
     insertAfter(place, &NewSegment);
   };
   
@@ -80,18 +94,23 @@ Segment_t * findFree ( Segment_t * list, size_t searchsize )
    printf ( "findFree> start\n");
   
    Segment_t * ptr = list;
+   printsegmentdescriptor(ptr);
+   printsegmentdescriptor(list);
    while (TRUE) {
-    
+      printf("myfree Segmentable: %p \n",list);
+      printf("myfree Segmentable.next: %p \n",ptr->next);
       if(ptr->allocated == FALSE){
         
         if(ptr->size >= searchsize){
+          printf("%x ", ptr->allocated);
+          printsegmentdescriptor(ptr);
           return ptr;
         };
            
       }; 
 
-      if (ptr->next->allocated == 0 || ptr->next->allocated == 1) {ptr = ptr->next;}
-      else {return NULL;};
+    if (ptr->next->allocated == 0 || ptr->next->allocated == 1) {ptr = ptr->next;}
+    else {break;};
     
   };
   
@@ -103,17 +122,18 @@ void insertAfter ( Segment_t * oldSegment, Segment_t * newSegment )
 {
   printf ( "insertAfter> start\n");
   Segment_t * ptr = oldSegment;
-  
+  printf("ptr: %p  newSegment: %p Segmentable: %p \n",ptr,newSegment,segmenttable);
   if (oldSegment->next->allocated == 0 || oldSegment->next->allocated == 1) {
     Segment_t * Temp = oldSegment->next;
     oldSegment->next = newSegment;
     newSegment->next = Temp;
+
     
   }
   else {
     ptr->next = newSegment;
   };
- 
+  printf("ptr: %p  newSegment: %p Segmentable: %p \n",ptr,newSegment,segmenttable);
   printf ( "insertAfter> end\n");
 }
 
@@ -197,15 +217,16 @@ void printmemory ()
 void printsegmenttable()
 {
   Segment_t * ptr = segmenttable;
+  printf("semgentable next and ptr next printsegmentable: %p %p \n", segmenttable->next, ptr->next);
   while (TRUE) {
-    
-    printf("Allocated = %d \n", ptr->allocated);
-    printf("start = %p  ",ptr->start);
-    printf("next = %p , %d ",ptr->next, ptr->next->allocated);
-    printf("size = %ld \n", ptr->size);
+    printsegmentdescriptor(ptr);
+    printf("Allocated = %d \n", ptr->allocated );
+    printf("start = %p  ", ptr->start );
+    printf("next = %p" , ptr->next );
+    printf("size = %lu \n", ptr->size );
     if (ptr->next->allocated == 0 || ptr->next->allocated == 1) {ptr = ptr->next;}
     else {break;};
-    
+    break;
   };
 
 }
@@ -214,6 +235,7 @@ void printsegmentdescriptor ( Segment_t * descriptor )
 {
       printf ( "\tallocated = %s\n" , (descriptor->allocated == FALSE ? "FALSE" : "TRUE" ) ) ;
       printf ( "\tstart     = %p\n" , descriptor->start ) ;
-      printf ( "\tsize      = %lu\n", descriptor->size  ) ;
+      printf ( "\tsize      = %ld\n", descriptor->size  ) ;
+      printf ( "\twhere     = %p \n", descriptor);
 }
 
